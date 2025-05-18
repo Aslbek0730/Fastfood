@@ -366,7 +366,8 @@
                                     {% endfor %}
                                 </ul>
                             </li>
-                            <li><a href="{% url 'users:buyed' %}">Buying <i class="fas fa-shopping-cart"></i></a></li>
+                            <li><a href="{% url 'users:buyed' %}">Savat <i class="fas fa-shopping-cart"></i></a></li>
+                            <li><a href="{% url 'users:order_history' %}">Buyurtmalar <i class="fas fa-history"></i></a></li>
                             {% if user.is_authenticated and user.is_superuser %}
                             <li><a href="{% url 'foods:new' %}">Add a menu</a></li>
                             {% endif %}

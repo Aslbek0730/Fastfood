@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+Buyurtmalar tarixi - {{ request.user }}
+{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Buyurtmalar tarixi</h3>
+                </div>
+                <div class="card-body">
+                    {% if orders %}
+                        {% for order in orders %}
+                            <div class="card mb-4">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Buyurtma #{{ order.id }}</h5>
+                                    <span class="badge {% if order.status == 'completed' %}bg-success{% elif order.status == 'processing' %}bg-warning{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-info{% endif %}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                {% with first_item=order.items.first %}
+                                                    {% if first_item %}
+                                                        <img src="{% if first_item.food.images.all %}{{ first_item.food.images.first.image.url }}{% else %}{{ first_item.food.main_image.url }}{% endif %}" 
+                                                             class="img-fluid rounded" 
+                                                             alt="Order Image"
+                                                             style="max-height: 200px; width: 100%; object-fit: cover;">
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                            <h6>Buyurtma ma'lumotlari:</h6>
+                                            <p><strong>Sana:</strong> {{ order.created_at|date:"d.m.Y H:i" }}</p>
+                                            <p><strong>Jami summa:</strong> ${{ order.total_amount }}</p>
+                                            <p><strong>Manzil:</strong> {{ order.address }}</p>
+                                            <p><strong>Karta raqami:</strong> **** **** **** {{ order.card_number }}</p>
+                                            <p><strong>Karta muddati:</strong> {{ order.card_expiry }}</p>
+                                            {% if order.delivery_time %}
+                                                <p><strong>Yetkazib berish vaqti:</strong> {{ order.delivery_time|date:"H:i" }}</p>
+                                            {% endif %}
+                                            
+                                            {% if order.status == 'processing' %}
+                                                <div class="alert alert-info mt-3">
+                                                    <i class="fas fa-clock"></i> Buyurtmangiz tayyorlanmoqda...
+                                                </div>
+                                            {% elif order.status == 'completed' and not order.is_delivered %}
+                                                <div class="alert alert-success mt-3">
+                                                    <i class="fas fa-check-circle"></i> Buyurtmangiz tayyor! Yetkazib berish vaqti: {{ order.delivery_time|date:"H:i" }}
+                                                </div>
+                                                <button class="btn btn-success mt-3" onclick="confirmDelivery({{ order.id }})">
+                                                    <i class="fas fa-check"></i> Buyurtmani oldim
+                                                </button>
+                                            {% elif order.is_delivered %}
+                                                <div class="mt-3">
+                                                    <h6>Baholash:</h6>
+                                                    {% if order.rating %}
+                                                        <div class="mb-2">
+                                                            {% for i in "12345" %}
+                                                                <i class="fas fa-star {% if forloop.counter <= order.rating %}text-warning{% else %}text-muted{% endif %}"></i>
+                                                            {% endfor %}
+                                                        </div>
+                                                        <p class="text-muted">{{ order.review }}</p>
+                                                    {% else %}
+                                                        <form id="rating-form-{{ order.id }}" class="mt-2" onsubmit="submitRating(event, {{ order.id }})">
+                                                            <div class="mb-2">
+                                                                {% for i in "12345" %}
+                                                                    <i class="fas fa-star rating-star" 
+                                                                       data-rating="{{ forloop.counter }}"
+                                                                       onclick="setRating({{ forloop.counter }}, {{ order.id }})"
+                                                                       style="cursor: pointer;"></i>
+                                                                {% endfor %}
+                                                            </div>
+                                                            <textarea class="form-control mb-2" 
+                                                                      placeholder="Sharh yozing..." 
+                                                                      id="review-{{ order.id }}"
+                                                                      required></textarea>
+                                                            <button type="submit" class="btn btn-primary btn-sm">
+                                                                <i class="fas fa-paper-plane"></i> Yuborish
+                                                            </button>
+                                                        </form>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Buyurtilgan mahsulotlar:</h6>
+                                            <div class="row">
+                                                {% for item in order.items.all %}
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="card h-100">
+                                                            <img src="{% if item.food.images.all %}{{ item.food.images.first.image.url }}{% else %}{{ item.food.main_image.url }}{% endif %}" 
+                                                                 class="card-img-top" 
+                                                                 alt="{{ item.food.title }}"
+                                                                 style="height: 150px; object-fit: cover;">
+                                                            <div class="card-body">
+                                                                <h6 class="card-title">{{ item.food.title }}</h6>
+                                                                <p class="card-text">
+                                                                    <small class="text-muted">
+                                                                        {{ item.quantity }} x ${{ item.food.price }}
+                                                                    </small>
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-history fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">Sizda hali buyurtmalar yo'q</h4>
+                            <p class="text-muted">Birinchi buyurtmangizni berish uchun taomlarni ko'rib chiqing!</p>
+                            <a href="{% url 'main:index' %}" class="btn btn-primary">
+                                <i class="fas fa-utensils"></i> Taomlarni ko'rish
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.badge {
+    font-size: 0.9rem;
+    padding: 0.5em 0.75em;
+}
+
+.rating-star {
+    font-size: 1.2rem;
+    color: #ccc;
+    transition: color 0.2s;
+}
+
+.rating-star:hover,
+.rating-star.active {
+    color: #ffc107;
+}
+
+textarea.form-control {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+textarea.form-control:focus {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+</style>
+
+<script>
+function confirmDelivery(orderId) {
+    if (confirm('Buyurtmani oldingizmi?')) {
+        fetch(`/users/confirm-delivery/${orderId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    }
+}
+
+function setRating(rating, orderId) {
+    const stars = document.querySelectorAll(`#rating-form-${orderId} .rating-star`);
+    stars.forEach((star, index) => {
+        if (index < rating) {
+            star.classList.add('active');
+            star.style.color = '#ffc107';
+        } else {
+            star.classList.remove('active');
+            star.style.color = '#ccc';
+        }
+    });
+}
+
+function submitRating(event, orderId) {
+    event.preventDefault();
+    const rating = document.querySelector(`#rating-form-${orderId} .rating-star.active`).dataset.rating;
+    const review = document.getElementById(`review-${orderId}`).value;
+
+    fetch(`/users/submit-rating/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            rating: rating,
+            review: review
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+</script>
+{% endblock content %} 
